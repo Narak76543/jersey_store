@@ -1,3 +1,4 @@
+
 <script setup>
 import { ref, onMounted } from 'vue';
 import EditProductModal from './EditProductModal.vue';
@@ -8,23 +9,48 @@ const loading = ref(true);
 const selectedProduct = ref(null);
 const isEditModalOpen = ref(false);
 
+// Fetch all products from your FastAPI backend
 const fetchProducts = async () => {
   try {
     const response = await fetch('http://localhost:8000/products');
     const data = await response.json();
     products.value = data;
   } catch (error) {
-    console.error("error fetching", error);
+    console.error("Error fetching products:", error);
   } finally {
     loading.value = false;
   }
 };
 
+// Open the Edit Modal
 const handleEdit = (item) => {
   selectedProduct.value = item;
   isEditModalOpen.value = true;
 };
 
+const handleDelete = async (id) => {
+  // The confirm() method creates a popup with "OK" and "Cancel"
+  const isConfirmed = confirm("Are you sure you want to delete this kit from the inventory?");
+  
+  if (isConfirmed) {
+    try {
+      const response = await fetch(`http://localhost:8000/products/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Refresh the product list immediately
+        await fetchProducts();
+        console.log("Product deleted successfully");
+      } else {
+        alert("Error: Could not delete the product from the server.");
+      }
+    } catch (error) {
+      console.error("Connection error:", error);
+      alert("Failed to connect to the backend server.");
+    }
+  }
+};
 onMounted(() => {
   fetchProducts();
 });
@@ -53,7 +79,7 @@ onMounted(() => {
         </div>
         
         <div class="col col-name">
-          <p class="product-text">{{ item.category+" - "+ item.name }}</p>
+          <p class="product-text">{{ item.category + " - " + item.name }}</p>
         </div>
 
         <div class="col col-name-lc">
@@ -65,7 +91,7 @@ onMounted(() => {
         </div>
 
         <div class="col col-desc">
-          <p class="product-desc">{{ item.descriptions }}</p>
+          <p class="product-desc" :title="item.descriptions">{{ item.descriptions }}</p>
         </div>
 
         <div class="col col-stock">
@@ -75,7 +101,7 @@ onMounted(() => {
         <div class="col col-actions">
           <div class="btn-group">
             <button class="btn btn-edit" @click="handleEdit(item)">Edit</button>
-            <button class="btn btn-view">View</button>
+            <button class="btn btn-delete" @click="handleDelete(item.id)">Delete</button>
           </div>
         </div>
       </div>
@@ -104,17 +130,22 @@ onMounted(() => {
   font-size: 24px;
 }
 
+.loading-text {
+  color: white;
+  text-align: center;
+  margin-top: 50px;
+}
+
 .list-container {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-/* --- Column Sizing --- */
+/* --- Grid System --- */
 .header-row, .list-card {
   display: grid;
-
-  grid-template-columns: 80px 2fr 1fr 80px 2fr 80px 160px;
+  grid-template-columns: 80px 2fr 1fr 80px 2fr 80px 180px;
   align-items: center;
   gap: 15px;
 }
@@ -145,11 +176,12 @@ onMounted(() => {
 .row-img {
   width: 50px;
   height: 50px;
-  object-fit: contain; /* */
+  object-fit: contain;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
 }
 
+/* --- Text Styles --- */
 .product-text { color: #fff; font-size: 14px; margin: 0; }
 
 .product-text-kh { 
@@ -171,7 +203,7 @@ onMounted(() => {
   margin: 0;
 }
 
-
+/* --- Buttons --- */
 .btn-group {
   display: flex;
   gap: 8px;
@@ -185,9 +217,11 @@ onMounted(() => {
   font-size: 11px;
   font-weight: 600;
   flex: 1;
+  transition: 0.2s;
 }
 
-.btn-view {
+/* Professional Red for Delete */
+.btn-delete {
   background-color: #df2531;
   color: white;
 }

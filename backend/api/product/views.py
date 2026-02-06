@@ -4,10 +4,10 @@ from sqlalchemy.orm import Session
 import uuid
 from core.db import get_db
 from api.product.models import Product
-from api.product.schemas import ProductResponse
 from main import app
 from fastapi import File, UploadFile, Form
 import os
+from sqlalchemy import desc
 
 @app.get("/")
 def root():
@@ -59,7 +59,7 @@ async def create_product(
 
 @app.get("/products/", tags=["product"])
 async def get_all_products(db: Session = Depends(get_db)):
-    products = db.query(Product).all()
+    products = db.query(Product).order_by(desc(Product.id)).all()
     
     for p in products:
         if p.image_url and p.image_url.startswith("/static"):
@@ -90,22 +90,18 @@ async def update_product(
     image          : Optional[UploadFile] = File(None),
     db             : Session              = Depends(get_db),
 ):
-    # 1. Find the existing product
     product_query = db.query(Product).filter(Product.id == product_id)
     db_product = product_query.first()
 
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # 2. Handle Image Update if a new file is provided
     if image:
-        # Delete old image file if it exists
         if db_product.image_url:
-            old_path = db_product.image_url.lstrip("/") # Remove leading slash
+            old_path = db_product.image_url.lstrip("/") 
             if os.path.exists(old_path):
                 os.remove(old_path)
 
-        # Save new image
         _, ext = os.path.splitext(image.filename)
         filename = f"{uuid.uuid4().hex}{ext}"
         dest_path = os.path.join(UPLOAD_DIR, filename)
@@ -116,7 +112,6 @@ async def update_product(
         
         db_product.image_url = f"/static/products/{filename}"
 
-    # 3. Update other fields only if they are provided
     if name is not None:
         db_product.name = name
     if name_lc is not None:
